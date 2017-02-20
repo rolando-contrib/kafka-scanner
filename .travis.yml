@@ -1,0 +1,56 @@
+language: python
+sudo: false
+matrix:
+  include:
+    - python: 2.7
+      env: TOXENV=py27
+
+env:
+  global:
+    - KAFKA_HOSTS=localhost:9092
+    - KAFKA_TEST_TOPIC=test-topic
+
+before_install:
+  - python --version
+  - uname -a
+  - lsb_release -a
+  - |
+    set -e
+    wget http://www.us.apache.org/dist/kafka/0.8.2.1/kafka_2.10-0.8.2.1.tgz -O kafka.tgz
+    mkdir -p kafka && tar xzf kafka.tgz -C kafka --strip-components 1
+    nohup bash -c "cd kafka && bin/zookeeper-server-start.sh config/zookeeper.properties &"
+    nohup bash -c "cd kafka && bin/kafka-server-start.sh config/server.properties &"
+    sleep 5
+    kafka/bin/kafka-topics.sh --create --partitions 4 --replication-factor 1 --topic $KAFKA_TEST_TOPIC --zookeeper localhost:2181
+
+# command to install dependencies, e.g. pip install -r requirements.txt --use-mirrors
+install: 
+  - pip install -U pip wheel
+  - pip install -U tox
+  - virtualenv --version
+  - easy_install --version
+  - pip --version
+  - tox --version
+
+# command to run tests, e.g. python setup.py test
+script:
+  - tox --workdir $HOME/.tox
+
+after_failure:
+  - more $HOME/.tox/log/* | cat
+  - more $HOME/.tox/*/log/* | cat
+
+before_cache:
+  - rm -fr $HOME/.cache/pip/log
+  - rm -fr $HOME/.tox/log/*
+  - rm -fr $HOME/.tox/*/log/*
+
+cache:
+  directories:
+    - $HOME/.cache/pip
+    - $HOME/.tox
+
+notifications:
+  email:
+    on_sucess: never
+    on_failure: always

@@ -1,4 +1,5 @@
 # coding=utf-8
+import os
 import unittest
 
 from mock import patch
@@ -11,6 +12,11 @@ from kafka_scanner.tests import (
 
 from kafka_scanner.exceptions import TestException
 
+
+KAFKA_HOSTS = os.getenv('KAFKA_HOSTS', 'kafka:9092').split(',')
+KAFKA_TEST_TOPIC = os.getenv('KAFKA_TEST_TOPIC', 'test-topic')
+
+
 class BaseScannerTest(unittest.TestCase):
     scannerclass = KafkaScanner
     def _get_scanner_messages(self, samples, num_partitions, kafka_consumer_mock,
@@ -18,10 +24,9 @@ class BaseScannerTest(unittest.TestCase):
         client = client or FakeClient(samples, num_partitions, max_partition_messages=max_partition_messages,
                             count_variations=count_variations)
         kafka_consumer_mock.side_effect = create_fake_kafka_consumer(client, kafka_consumer_mock, fail_on_offset)
-        topic = 'test-topic'
         group = scanner_kwargs.pop('group', None)
-        scanner = self.scannerclass(['kafka:9092'], topic, group,
-                partitions=client.topic_partitions[topic].keys(),
+        scanner = self.scannerclass(KAFKA_HOSTS, KAFKA_TEST_TOPIC, group,
+                partitions=client.topic_partitions[KAFKA_TEST_TOPIC].keys(),
                   **scanner_kwargs)
         batches = scanner.scan_topic_batches()
         number_of_batches = 0
